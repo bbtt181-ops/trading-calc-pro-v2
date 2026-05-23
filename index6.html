@@ -416,14 +416,24 @@ function showChip(chipId,valId,amount,cls){
   chip.style.display='inline-flex';val.textContent=(amount>=0?'+':'')+fmtIls(Math.abs(amount));
   val.style.color=cls==='pos'?'var(--green)':cls==='neg'?'var(--red)':'var(--text)';
 }
-async function fetchIlsRate(){
+// ─── API Cache — מונע קריאות כפולות ב-5 דקות ───
+const _apiCache={};
+function _cacheGet(key){const c=_apiCache[key];if(c&&Date.now()-c.ts<5*60*1000)return c.data;return null;}
+function _cacheSet(key,data){_apiCache[key]={data,ts:Date.now()};}
+
+async function fetchIlsRate(force=false){
   const btn=document.querySelector('.ils-fetch-btn'),st=document.getElementById('ils-status');
-  btn.textContent='⏳';btn.style.pointerEvents='none';st.textContent='שולף שער...';
+  // בדוק cache קודם
+  if(!force){
+    const cached=_cacheGet('ILS');
+    if(cached){ilsRate=cached;document.getElementById('ils-rate').value=cached.toFixed(2);onIlsChange();if(st)st.textContent='✓ '+cached.toFixed(3)+'  (cache)';return;}
+  }
+  if(btn){btn.textContent='⏳';btn.style.pointerEvents='none';}if(st)st.textContent='שולף שער...';
   try{const res=await fetch('https://api.twelvedata.com/price?symbol=USD/ILS&apikey='+TWELVEDATA_KEY);const data=await res.json();if(!data.price)throw new Error();
     const rate=parseFloat(data.price);document.getElementById('ils-rate').value=rate.toFixed(2);
-    ilsRate=rate;localStorage.setItem('ils_rate',rate.toFixed(4));st.textContent='✓ '+rate.toFixed(3);st.style.color='var(--green)';onIlsChange();
-  }catch(e){st.textContent='⚠️ הזן ידנית';st.style.color='var(--amber)';}
-  btn.textContent='🔄 שלוף שער';btn.style.pointerEvents='';setTimeout(()=>st.textContent='',5000);
+    ilsRate=rate;_cacheSet('ILS',rate);localStorage.setItem('ils_rate',rate.toFixed(4));if(st){st.textContent='✓ '+rate.toFixed(3);st.style.color='var(--green)';}onIlsChange();
+  }catch(e){if(st){st.textContent='⚠️ הזן ידנית';st.style.color='var(--amber)';}}
+  if(btn){btn.textContent='🔄 שלוף שער';btn.style.pointerEvents='';}if(st)setTimeout(()=>st.textContent='',5000);
 }
 function ilsCell(usd){const r=getIls();if(!r||!usd)return'<span style="color:var(--muted);font-size:11px">—</span>';return'<span style="color:var(--blue);font-size:12px;font-family:var(--mono)">'+fmtIls(usd*r)+'</span>';}
 function ilsCellPL(usd){const r=getIls();if(!r||usd==null)return'<span style="color:var(--muted);font-size:11px">—</span>';const ils=usd*r;return'<span style="font-size:12px;font-family:var(--mono);color:'+(ils>=0?'var(--green)':'var(--red)')+'">'+(ils>=0?'+':'')+fmtIls(Math.abs(ils))+'</span>';}
@@ -447,7 +457,14 @@ async function cloudSave(data){if(!APPS_SCRIPT_URL)return false;try{const form=d
 async function jLoadCloud(){const cloud=await cloudLoad();if(cloud){localStorage.setItem(STORAGE_KEY,JSON.stringify(cloud));renderJournal();const ind=document.getElementById('sync-indicator');if(ind){ind.textContent='☁️ נטען מהענן';setTimeout(()=>ind.textContent='',2500);}}}
 async function jPushAll(){if(!APPS_SCRIPT_URL){alert('חבר תחילה לGoogle Sheets');return;}const d=jLoad(),ok=await cloudSave(d);const ind=document.getElementById('sync-indicator');if(ind){ind.textContent=ok?'☁️ '+d.length+' רשומות נדחפו':'⚠️ שגיאה';setTimeout(()=>ind.textContent='',3000);}}
 let liveRefreshTimer=null;
-async function fetchLivePrice(ticker){try{const res=await fetch('https://api.twelvedata.com/quote?symbol='+ticker+'&apikey='+TWELVEDATA_KEY);const data=await res.json();if(data.status==='error'||!data.close)throw new Error();return{price:parseFloat(data.close),chg:parseFloat(data.change)||0,chgPct:parseFloat(data.percent_change)||0,time:new Date().toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})};}catch(e){return null;}}
+async function fetchLivePrice(ticker,force=false){
+  const key='QUOTE_'+ticker;
+  if(!force){const c=_cacheGet(key);if(c)return c;}
+  try{const res=await fetch('https://api.twelvedata.com/quote?symbol='+ticker+'&apikey='+TWELVEDATA_KEY);const data=await res.json();if(data.status==='error'||!data.close)throw new Error();
+    const result={price:parseFloat(data.close),chg:parseFloat(data.change)||0,chgPct:parseFloat(data.percent_change)||0,time:new Date().toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})};
+    _cacheSet(key,result);return result;
+  }catch(e){return null;}
+}
 function updateLivePanel(ticker,price,chg,chgPct,time){
   const panel=document.getElementById('live-panel');if(!panel)return;panel.style.display='flex';
   document.getElementById('lp-ticker').textContent=ticker;document.getElementById('lp-price').textContent='$'+price.toFixed(2);
@@ -520,13 +537,27 @@ async function fetchAll(ticker){
   document.getElementById('warn-box').classList.remove('on');document.getElementById('results').style.display='none';document.getElementById('placeholder').style.display='none';
   if(!currentJournalId){document.getElementById('current-price-input').value='';document.getElementById('profit-summary').style.display='none';customPrices=[null,null,null];exitManual=[{price:null,shares:null,date:'',executed:false},{price:null,shares:null,date:'',executed:false},{price:null,shares:null,date:'',executed:false}];}
   try{
-    const res=await fetch('https://api.twelvedata.com/time_series?symbol='+ticker+'&interval=1day&outputsize=60&apikey='+TWELVEDATA_KEY);
-    const data=await res.json();if(data.status==='error')throw new Error(data.message||'שגיאת API');
-    const vals=data.values;if(!vals||!vals.length)throw new Error('לא נמצאו נתונים עבור '+ticker);
-    const latestDate=vals[0].datetime,latestClose=parseFloat(vals[0].close);
-    const prevClose=vals.length>1?parseFloat(vals[1].close):latestClose;
+    const BASE='https://api.twelvedata.com',K='&apikey='+TWELVEDATA_KEY;
+    const qKey='QUOTE_'+ticker,aKey='ATR_'+ticker;
+    let quoteData=_cacheGet(qKey),atrData=_cacheGet(aKey);
+    if(!quoteData||!atrData){
+      status.textContent='שולף מחיר + ATR במקביל...';
+      const [qRes,aRes]=await Promise.all([
+        fetch(BASE+'/quote?symbol='+ticker+K),
+        fetch(BASE+'/atr?symbol='+ticker+'&interval=1day&time_period=21&outputsize=1'+K)
+      ]);
+      const [qJson,aJson]=await Promise.all([qRes.json(),aRes.json()]);
+      if(qJson.status==='error')throw new Error(qJson.message||'טיקר לא נמצא: '+ticker);
+      if(aJson.status==='error')throw new Error('שגיאת ATR: '+aJson.message);
+      if(!qJson.close)throw new Error('אין נתוני מחיר עבור '+ticker);
+      if(!aJson.values||!aJson.values[0])throw new Error('אין נתוני ATR עבור '+ticker);
+      quoteData=qJson;atrData=aJson;
+      _cacheSet(qKey,quoteData);_cacheSet(aKey,atrData);
+    }else{status.textContent='נטען מ-cache...';}
+    const latestClose=parseFloat(quoteData.close),prevClose=parseFloat(quoteData.previous_close)||latestClose;
+    const latestDate=quoteData.datetime?.split(' ')[0]||new Date().toISOString().split('T')[0];
     const changePct=((latestClose-prevClose)/prevClose)*100;
-    const freshATR=calcATR_TD(vals,21);if(!freshATR)throw new Error('לא מספיק נתונים לחישוב ATR');
+    const freshATR=parseFloat(atrData.values[0].atr);if(!freshATR)throw new Error('לא מספיק נתונים לחישוב ATR');
     let useATR=freshATR,useEntryP=latestClose,atrIsLocked=false;
     if(currentJournalId){const locked=atrGet(currentJournalId);if(locked&&locked.atr){useATR=locked.atr;if(locked.entryPrice)useEntryP=locked.entryPrice;atrIsLocked=true;const badge=document.getElementById('atr-lock-badge');if(badge)badge.textContent='🔒 ATR נעול: $'+useATR.toFixed(4)+' | כניסה: $'+useEntryP.toFixed(2)+' ('+locked.date+')';document.getElementById('atr-lock-display').style.display='block';}}
     else{document.getElementById('atr-lock-display').style.display='none';}
@@ -694,18 +725,19 @@ function onPriceChange(idx,val){
 function onSharesChange(idx,val){
   const v=Math.round(parseFloat(val));if(!v||v<=0)return;
   entryData[idx].shares=v;
-  // כשמשנים כניסה #1 — מחשב מחדש #2 ו-#3 לפי יחס 40/35/25
+  // כשמשנים כניסה #1 — הסל הכולל נשאר קבוע, מחלקים את הנותר בין #2 ו-#3
   if(idx===0&&entryData.length>=3){
-    const impliedTotal=v/0.40;
-    const s2=Math.floor(impliedTotal*0.35);
-    const s3=Math.max(0,Math.round(impliedTotal-v-s2));
+    const originalTotal=Math.round(window._tpParams?.totalShares||(entryData[0].shares+entryData[1].shares+entryData[2].shares));
+    const remaining=Math.max(0,originalTotal-v);
+    const s2=Math.floor(remaining*35/60);
+    const s3=Math.max(0,remaining-s2);
     entryData[1].shares=s2;
     entryData[2].shares=s3;
   }
-  // כשמשנים כניסה #2 — מעדכן #3 לפי הנותר
+  // כשמשנים כניסה #2 — מעדכן #3 לפי הנותר מהסל הכולל
   if(idx===1&&entryData.length>=3){
-    const impliedTotal=entryData[0].shares/0.40;
-    entryData[2].shares=Math.max(0,Math.round(impliedTotal-entryData[0].shares-v));
+    const originalTotal=Math.round(window._tpParams?.totalShares||(entryData[0].shares+entryData[1].shares+entryData[2].shares));
+    entryData[2].shares=Math.max(0,originalTotal-entryData[0].shares-v);
   }
   // עדכון ממוצע עלות מכניסות שבוצעו בלבד
   const prices=getActivePrices();
