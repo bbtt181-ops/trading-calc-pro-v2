@@ -1026,4 +1026,48 @@ function jRefreshRow(id){
 function jDelete(id){if(!confirm('למחוק שורה זו?'))return;atrDelete(id);jSave(jLoad().filter(r=>r.id!==id));renderJournal();}
 async function jFetchLive(id,ticker,btn){
   if(!ticker){alert('הזן סימול');return;}btn.textContent='⏳';btn.style.pointerEvents='none';
-  try{const res=await fetch('https://api.twelvedata.com/quote?symbol='+ticker+'&apikey='+TWELVEDATA_KEY);
+  try{const res=await fetch('https://api.twelvedata.com/quote?symbol='+ticker+'&apikey='+TWELVEDATA_KEY);const data=await res.json();if(data.status==='error'||!data.close)throw new Error();
+    const price=parseFloat(data.close),chg=parseFloat(data.change)||0,chgPct=parseFloat(data.percent_change)||0;
+    const d=jLoad();const r=d.find(x=>x.id===id);if(r){r.curP=+price.toFixed(2);r.dailyChg=+chg.toFixed(2);r.dailyChgPct=+chgPct.toFixed(2);jSave(d);}renderJournal();
+  }catch(e){btn.textContent='!';btn.style.color='var(--red)';setTimeout(()=>{btn.textContent='📡';btn.style.color='';},3000);}
+  btn.style.pointerEvents='';
+}
+function addEmptyRow(){const rec={id:Date.now(),ticker:'',totalSh:'',date:new Date().toISOString().split('T')[0],e1p:'',e1s:'',e2p:'',e2s:'',e3p:'',e3s:'',stop:'',riskPct:1,curP:'',dailyChg:'',dailyChgPct:'',commExpr:'',status:'open',notes:''};const d=jLoad();d.unshift(rec);jSave(d);renderJournal();}
+function setJFilter(f,el){jFilter=f;document.querySelectorAll('.jfbtn').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderJournal();}
+function clearJournal(){if(!confirm('למחוק את כל היומן?'))return;localStorage.removeItem(ATR_STORE_KEY);jSave([]);renderJournal();}
+function exportToSheets(btn){if(!APPS_SCRIPT_URL){alert('חבר תחילה לGoogle Sheets');return;}const data=jLoad();if(!data.length){alert('אין נתונים');return;}const orig=btn.textContent;btn.textContent='⏳ שולח...';btn.style.pointerEvents='none';const form=document.getElementById('gs-export-form'),dataEl=document.getElementById('gs-export-data');if(form&&dataEl){form.action=APPS_SCRIPT_URL;dataEl.value=JSON.stringify(data);form.submit();}btn.textContent='✅ נשלח!';btn.style.background='var(--green)';btn.style.color='#fff';setTimeout(()=>{btn.textContent=orig;btn.style.background='';btn.style.color='var(--green)';btn.style.pointerEvents='';},3000);}
+async function autoRefreshJournal(){
+  const data=jLoad(),toRefresh=data.filter(r=>r.ticker&&(r.status==='open'||r.status==='be'));
+  if(!toRefresh.length)return;
+  const toolbar=document.getElementById('j-refresh-status');if(toolbar)toolbar.textContent='מרענן מחירים...';
+  for(const r of toRefresh){try{const live=await fetchLivePrice(r.ticker);if(!live)continue;const d=jLoad();const rec=d.find(x=>x.id===r.id);if(rec){rec.curP=+live.price.toFixed(2);rec.dailyChg=+live.chg.toFixed(2);rec.dailyChgPct=+live.chgPct.toFixed(2);jSave(d);}await new Promise(res=>setTimeout(res,1200));}catch(e){}}
+  renderJournal();if(toolbar)toolbar.textContent='עודכן ✓';setTimeout(()=>{if(toolbar)toolbar.textContent='';},3000);
+}
+function switchTab(n){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
+  document.getElementById('tab-'+n).classList.add('active');document.getElementById('pane-'+n).classList.add('active');
+  if(n==='journal'){
+    renderJournal();
+    if(syncMode==='cloud')jLoadCloud();
+    autoRefreshJournal();
+  }
+}
+(function init(){
+  const saved=localStorage.getItem('gs_url');
+  if(saved&&saved.trim()){APPS_SCRIPT_URL=saved;const inp=document.getElementById('gs-url-input');if(inp)inp.value=saved;}
+  else{const inp=document.getElementById('gs-url-input');if(inp)inp.value=DEFAULT_GS_URL;}
+  syncMode='cloud';updateSyncStatus();
+  jLoadCloud().then(()=>renderJStats(jLoad()));
+})();
+</script>
+<iframe name="gs-sync-frame" style="display:none"></iframe>
+<form id="gs-sync-form" method="POST" target="gs-sync-frame" style="display:none">
+  <input type="hidden" name="action" value="save">
+  <textarea name="data" id="gs-sync-data"></textarea>
+</form>
+<iframe name="gs-export-frame" style="display:none"></iframe>
+<form id="gs-export-form" method="POST" target="gs-export-frame" style="display:none">
+  <input type="hidden" name="action" value="export">
+  <textarea name="data" id="gs-export-data"></textarea>
+</form>
+</body></html>
