@@ -203,6 +203,21 @@ input[type=number]{-moz-appearance:textfield}
   .tabs{gap:1px}
   .tab{padding:6px 10px;font-size:11px}
 }
+/* ── גריד יציאות ידניות ── */
+.exit-grid{display:grid;grid-template-columns:90px 1fr 100px 90px 110px 1fr;gap:8px;align-items:center;background:var(--bg3);border-radius:6px;padding:8px 12px;border:1px solid var(--border);margin-bottom:6px}
+/* ── גריד רווח פוטנציאלי ── */
+.tp-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+/* ── גריד טריילינג סטופ ── */
+.ts-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+@media(max-width:768px){
+  .exit-grid{grid-template-columns:1fr 1fr}
+  .tp-grid{grid-template-columns:repeat(2,1fr)}
+  .ts-grid{grid-template-columns:1fr}
+}
+@media(max-width:480px){
+  .exit-grid{grid-template-columns:1fr}
+  .tp-grid{grid-template-columns:1fr 1fr}
+}
 </style>
 </head><body>
 <div class="header">
@@ -645,7 +660,7 @@ function applyStop(P,ATR,stop,ticker,date){
 function renderTrailingStopPanel(P,ATR,ex2p){
   const panel=document.getElementById('trailing-stop-panel');if(!panel)return;panel.style.display='block';
   const adrPct=(ATR/P)*100,isFast=adrPct>=4,maLabel=isFast?'10-day MA':'20-day MA',minerviniStop=P+0.5*ATR;
-  panel.innerHTML='<div style="background:linear-gradient(135deg,#1a2a1a,#1a3a1a);border-radius:var(--radius);padding:16px 20px;border:1.5px solid #2a6040"><div style="display:flex;align-items:center;gap:10px;margin-bottom:14px"><span style="font-size:18px">🎯</span><div><div style="font-size:12px;font-weight:800;color:#7ed99a;text-transform:uppercase;letter-spacing:.7px">טריילינג סטופ — אחרי יציאה #2</div><div style="font-size:10px;color:#4a8060;margin-top:2px">מופעל כשהמניה מגיעה ל-'+fmtD(ex2p)+'</div></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px"><div style="background:rgba(255,255,255,.07);border-radius:8px;padding:12px;border:1px solid #2a5035"><div style="font-size:11px;font-weight:800;color:#7ed99a;margin-bottom:6px">⚡ Qullamaggie</div><div style="font-size:13px;font-weight:700;color:#fff;font-family:var(--mono)">'+maLabel+'</div><div style="font-size:10px;color:#4a9060;margin-top:4px">'+(isFast?'מניה תנודתית (ADR≥4%)':'מניה יציבה (ADR&lt;4%)')+'<br>יציאה: סגירת יום מתחת ל-MA</div></div><div style="background:rgba(255,255,255,.07);border-radius:8px;padding:12px;border:1px solid #2a3a50"><div style="font-size:11px;font-weight:800;color:#7ec8f0;margin-bottom:6px">🏆 Minervini (SEPA)</div><div style="font-size:13px;font-weight:700;color:#fff;font-family:var(--mono)">תמיכות טכניות</div><div style="font-size:10px;color:#3a6080;margin-top:4px">P+0.5×ATR = <strong style="color:#7ec8f0">'+fmtD(minerviniStop)+'</strong><br>הזזה עם כל Swing Low חדש</div></div></div><div style="background:rgba(255,200,60,.08);border:1px solid rgba(255,200,60,.2);border-radius:6px;padding:10px 14px"><span style="font-size:10px;font-weight:700;color:#ffcc60">💡 ההבדל: Qullamaggie = מכאני · Minervini = שיקולי</span></div></div>';
+  panel.innerHTML='<div style="background:linear-gradient(135deg,#1a2a1a,#1a3a1a);border-radius:var(--radius);padding:16px 20px;border:1.5px solid #2a6040"><div style="display:flex;align-items:center;gap:10px;margin-bottom:14px"><span style="font-size:18px">🎯</span><div><div style="font-size:12px;font-weight:800;color:#7ed99a;text-transform:uppercase;letter-spacing:.7px">טריילינג סטופ — אחרי יציאה #2</div><div style="font-size:10px;color:#4a8060;margin-top:2px">מופעל כשהמניה מגיעה ל-'+fmtD(ex2p)+'</div></div></div><div class="ts-grid"><div style="background:rgba(255,255,255,.07);border-radius:8px;padding:12px;border:1px solid #2a5035"><div style="font-size:11px;font-weight:800;color:#7ed99a;margin-bottom:6px">⚡ Qullamaggie</div><div style="font-size:13px;font-weight:700;color:#fff;font-family:var(--mono)">'+maLabel+'</div><div style="font-size:10px;color:#4a9060;margin-top:4px">'+(isFast?'מניה תנודתית (ADR≥4%)':'מניה יציבה (ADR&lt;4%)')+'<br>יציאה: סגירת יום מתחת ל-MA</div></div><div style="background:rgba(255,255,255,.07);border-radius:8px;padding:12px;border:1px solid #2a3a50"><div style="font-size:11px;font-weight:800;color:#7ec8f0;margin-bottom:6px">🏆 Minervini (SEPA)</div><div style="font-size:13px;font-weight:700;color:#fff;font-family:var(--mono)">תמיכות טכניות</div><div style="font-size:10px;color:#3a6080;margin-top:4px">P+0.5×ATR = <strong style="color:#7ec8f0">'+fmtD(minerviniStop)+'</strong><br>הזזה עם כל Swing Low חדש</div></div></div><div style="background:rgba(255,200,60,.08);border:1px solid rgba(255,200,60,.2);border-radius:6px;padding:10px 14px"><span style="font-size:10px;font-weight:700;color:#ffcc60">💡 ההבדל: Qullamaggie = מכאני · Minervini = שיקולי</span></div></div>';
 }
 function renderTotalProfit(P,ATR,ex1p,ex2p,ex3p,ex1s,ex2s,ex3s,stop,totalShares){
   const s1=Math.floor(totalShares*0.40),s2=Math.floor(totalShares*0.35),s3=Math.max(0,Math.round(totalShares-s1-s2));
@@ -655,7 +670,7 @@ function renderTotalProfit(P,ATR,ex1p,ex2p,ex3p,ex1s,ex2s,ex3s,stop,totalShares)
   const e3=parseFloat(document.getElementById('exp-2')?.value)||ex3p;
   const p1=ex1s*(e1-avg),p2=ex2s*(e2-avg),p3=ex3s*(e3-avg),tot=ex1s*e1+ex2s*e2+ex3s*e3-inv;
   const pct=(tot/inv)*100,maxL=totalShares*(P-stop),rr=tot/maxL,r=getIls();
-  document.getElementById('total-profit-box').innerHTML='<div style="background:var(--green-bg);border:1.5px solid #80d4a0;border-radius:var(--radius);padding:14px 18px;margin-top:14px"><div style="font-size:10px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px">סה"כ רווח פוטנציאלי — אם כל הטרייד הולך לטובתך</div><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px">'+
+  document.getElementById('total-profit-box').innerHTML='<div style="background:var(--green-bg);border:1.5px solid #80d4a0;border-radius:var(--radius);padding:14px 18px;margin-top:14px"><div style="font-size:10px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px">סה"כ רווח פוטנציאלי — אם כל הטרייד הולך לטובתך</div><div class="tp-grid">'+
     [['רווח יציאה #1',p1],['רווח יציאה #2',p2],['רווח יציאה #3',p3],['סה"כ רווח',tot,true]].map(([l,v,b])=>'<div style="background:#fff;border-radius:7px;padding:9px 11px;border:1px solid #90d4a8"><div style="font-size:9px;color:var(--muted);margin-bottom:3px;text-transform:uppercase">'+l+'</div><div style="font-size:'+(b?'19':'15')+'px;font-weight:700;color:'+(v>=0?'var(--green)':'var(--red)')+';font-family:var(--mono)">'+fmtD(v)+'</div>'+(r>0?'<div style="font-size:11px;color:var(--blue);font-family:var(--mono)">'+(v>=0?'+':'')+fmtIls(Math.abs(v*r))+'</div>':'')+'</div>').join('')+
     '</div><div style="display:flex;gap:20px;padding-top:10px;border-top:1px solid #90d4a8;flex-wrap:wrap">'+
     [['% מהשקעה','+'+fmt(pct,1)+'%'],['R:R כולל',fmt(rr,1)+'R'],['סיכון מקס׳','-'+fmtD(maxL)],['סה"כ השקעה',fmtD(inv)]].map(([l,v])=>{const col=v.startsWith('-')?'var(--red)':v.startsWith('+')?'var(--green)':'var(--text)';return'<div><span style="font-size:10px;color:var(--green)">'+l+'</span><br><span style="font-size:17px;font-weight:700;color:'+col+';font-family:var(--mono)">'+v+'</span></div>';}).join('')+'</div></div>';
@@ -793,7 +808,7 @@ function renderExitManual(){
     const stopDist=window._exitData&&window._exitData[i]?window._exitData[i].stopDist:0;
     const rrRaw=avg&&price&&stopDist>0?(price-avg)/stopDist:null;
     const rrDisp=rrRaw!=null&&rrRaw>0?rrRaw.toFixed(1)+'R':'—';
-    html+='<div style="display:grid;grid-template-columns:90px 1fr 100px 90px 110px 1fr;gap:8px;align-items:center;background:var(--bg3);border-radius:6px;padding:8px 12px;border:1px solid var(--border);margin-bottom:6px">'+
+    html+='<div class="exit-grid">'+
       '<span style="font-size:11px;font-weight:700;color:'+colors[i]+'">'+labels[i].split(' — ')[0]+'</span>'+
       '<span style="font-size:11px;color:var(--muted)">'+labels[i].split(' — ')[1]+'</span>'+
       '<input type="number" step="0.01" value="'+(price||'')+'" placeholder="מחיר" style="background:var(--bg);border:1.5px solid var(--border);border-radius:4px;color:var(--text);padding:5px 8px;font-size:13px;direction:ltr;outline:none;font-family:var(--mono);width:100%" onblur="exitManual['+i+'].price=parseFloat(this.value)||null;renderExitManual();syncToJournal();calcProfit()" onchange="exitManual['+i+'].price=parseFloat(this.value)||null;renderExitManual()">'+
@@ -1011,44 +1026,4 @@ function jRefreshRow(id){
 function jDelete(id){if(!confirm('למחוק שורה זו?'))return;atrDelete(id);jSave(jLoad().filter(r=>r.id!==id));renderJournal();}
 async function jFetchLive(id,ticker,btn){
   if(!ticker){alert('הזן סימול');return;}btn.textContent='⏳';btn.style.pointerEvents='none';
-  try{const res=await fetch('https://api.twelvedata.com/quote?symbol='+ticker+'&apikey='+TWELVEDATA_KEY);const data=await res.json();if(data.status==='error'||!data.close)throw new Error();
-    const price=parseFloat(data.close),chg=parseFloat(data.change)||0,chgPct=parseFloat(data.percent_change)||0;
-    const d=jLoad();const r=d.find(x=>x.id===id);if(r){r.curP=+price.toFixed(2);r.dailyChg=+chg.toFixed(2);r.dailyChgPct=+chgPct.toFixed(2);jSave(d);}renderJournal();
-  }catch(e){btn.textContent='!';btn.style.color='var(--red)';setTimeout(()=>{btn.textContent='📡';btn.style.color='';},3000);}
-  btn.style.pointerEvents='';
-}
-function addEmptyRow(){const rec={id:Date.now(),ticker:'',totalSh:'',date:new Date().toISOString().split('T')[0],e1p:'',e1s:'',e2p:'',e2s:'',e3p:'',e3s:'',stop:'',riskPct:1,curP:'',dailyChg:'',dailyChgPct:'',commExpr:'',status:'open',notes:''};const d=jLoad();d.unshift(rec);jSave(d);renderJournal();}
-function setJFilter(f,el){jFilter=f;document.querySelectorAll('.jfbtn').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderJournal();}
-function clearJournal(){if(!confirm('למחוק את כל היומן?'))return;localStorage.removeItem(ATR_STORE_KEY);jSave([]);renderJournal();}
-function exportToSheets(btn){if(!APPS_SCRIPT_URL){alert('חבר תחילה לGoogle Sheets');return;}const data=jLoad();if(!data.length){alert('אין נתונים');return;}const orig=btn.textContent;btn.textContent='⏳ שולח...';btn.style.pointerEvents='none';const form=document.getElementById('gs-export-form'),dataEl=document.getElementById('gs-export-data');if(form&&dataEl){form.action=APPS_SCRIPT_URL;dataEl.value=JSON.stringify(data);form.submit();}btn.textContent='✅ נשלח!';btn.style.background='var(--green)';btn.style.color='#fff';setTimeout(()=>{btn.textContent=orig;btn.style.background='';btn.style.color='var(--green)';btn.style.pointerEvents='';},3000);}
-async function autoRefreshJournal(){
-  const data=jLoad(),toRefresh=data.filter(r=>r.ticker&&(r.status==='open'||r.status==='be'));
-  if(!toRefresh.length)return;
-  const toolbar=document.getElementById('j-refresh-status');if(toolbar)toolbar.textContent='מרענן מחירים...';
-  for(const r of toRefresh){try{const live=await fetchLivePrice(r.ticker);if(!live)continue;const d=jLoad();const rec=d.find(x=>x.id===r.id);if(rec){rec.curP=+live.price.toFixed(2);rec.dailyChg=+live.chg.toFixed(2);rec.dailyChgPct=+live.chgPct.toFixed(2);jSave(d);}await new Promise(res=>setTimeout(res,1200));}catch(e){}}
-  renderJournal();if(toolbar)toolbar.textContent='עודכן ✓';setTimeout(()=>{if(toolbar)toolbar.textContent='';},3000);
-}
-function switchTab(n){
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
-  document.getElementById('tab-'+n).classList.add('active');document.getElementById('pane-'+n).classList.add('active');
-  if(n==='journal'){if(syncMode==='cloud')jLoadCloud();else renderJournal();autoRefreshJournal();}
-}
-(function init(){
-  const saved=localStorage.getItem('gs_url');
-  if(saved&&saved.trim()){APPS_SCRIPT_URL=saved;const inp=document.getElementById('gs-url-input');if(inp)inp.value=saved;}
-  else{const inp=document.getElementById('gs-url-input');if(inp)inp.value=DEFAULT_GS_URL;}
-  syncMode='cloud';updateSyncStatus();
-  jLoadCloud().then(()=>renderJStats(jLoad()));
-})();
-</script>
-<iframe name="gs-sync-frame" style="display:none"></iframe>
-<form id="gs-sync-form" method="POST" target="gs-sync-frame" style="display:none">
-  <input type="hidden" name="action" value="save">
-  <textarea name="data" id="gs-sync-data"></textarea>
-</form>
-<iframe name="gs-export-frame" style="display:none"></iframe>
-<form id="gs-export-form" method="POST" target="gs-export-frame" style="display:none">
-  <input type="hidden" name="action" value="export">
-  <textarea name="data" id="gs-export-data"></textarea>
-</form>
-</body></html>
+  try{const res=await fetch('https://api.twelvedata.com/quote?symbol='+ticker+'&apikey='+TWELVEDATA_KEY);
