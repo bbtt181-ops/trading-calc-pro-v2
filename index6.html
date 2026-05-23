@@ -218,6 +218,25 @@ input[type=number]{-moz-appearance:textfield}
   .exit-grid{grid-template-columns:1fr}
   .tp-grid{grid-template-columns:1fr 1fr}
 }
+/* ── כרטיסיות יומן למובייל ── */
+.j-cards{padding:4px 0}
+@media(max-width:768px){
+  .j-wrap .j-table{display:none!important}
+  .j-wrap .j-empty{display:none!important}
+}
+@media(min-width:769px){.j-cards{display:none}}
+.j-card{background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:9px;box-shadow:0 1px 5px rgba(0,0,0,.07)}
+.j-card.row-selected{outline:2px solid var(--accent);background:#e8f2fb!important}
+.j-card-top{display:flex;align-items:center;gap:8px;margin-bottom:9px;flex-wrap:wrap}
+.j-card-ticker{font-size:20px;font-weight:800;color:var(--text);font-family:var(--mono)}
+.j-card-days{font-size:11px;color:var(--muted);margin-right:auto}
+.j-card-body{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}
+.j-card-item{background:var(--bg3);border-radius:6px;padding:6px 10px}
+.j-card-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-weight:700;margin-bottom:2px}
+.j-card-val{font-size:13px;font-weight:700;font-family:var(--mono)}
+.j-card-pos{color:var(--green)}.j-card-neg{color:var(--red)}.j-card-mut{color:var(--muted)}
+.j-card-notes{font-size:11px;color:var(--muted);padding:5px 0;border-top:1px solid var(--border);margin-bottom:5px;font-style:italic}
+.j-card-actions{display:flex;gap:6px;justify-content:flex-end;padding-top:6px;border-top:1px solid var(--border)}
 </style>
 </head><body>
 <div class="header">
@@ -368,6 +387,7 @@ input[type=number]{-moz-appearance:textfield}
   </table>
   <div class="j-empty" id="j-empty" style="display:none"><div style="font-size:32px;opacity:.2;margin-bottom:10px">📊</div><div>אין עסקאות ביומן</div></div>
  </div>
+ <div id="j-cards"></div>
 </div>
 <div class="pane" id="pane-principles">
  <div class="principles">
@@ -467,10 +487,36 @@ function updateSyncStatus(){
   if(syncMode==='cloud'){bar.style.background='#e4f5ed';bar.style.borderColor='#0a7a45';lbl.innerHTML='☁️ מסונכרן עם Google Sheets';lbl.style.color='#0a7a45';}
   else{bar.style.background='#fff8e4';bar.style.borderColor='#c47a0a';lbl.innerHTML='💾 שמירה מקומית בלבד';lbl.style.color='#c47a0a';}
 }
-async function cloudLoad(){if(!APPS_SCRIPT_URL)return null;try{const res=await fetch(APPS_SCRIPT_URL+'?action=load&t='+Date.now());const data=JSON.parse(await res.text());if(Array.isArray(data))return data;}catch(e){}return null;}
-async function cloudSave(data){if(!APPS_SCRIPT_URL)return false;try{const form=document.getElementById('gs-sync-form'),dataEl=document.getElementById('gs-sync-data');if(form&&dataEl){form.action=APPS_SCRIPT_URL;dataEl.value=JSON.stringify(data);form.submit();return true;}return false;}catch(e){return false;}}
-async function jLoadCloud(){const cloud=await cloudLoad();if(cloud){localStorage.setItem(STORAGE_KEY,JSON.stringify(cloud));renderJournal();const ind=document.getElementById('sync-indicator');if(ind){ind.textContent='☁️ נטען מהענן';setTimeout(()=>ind.textContent='',2500);}}}
-async function jPushAll(){if(!APPS_SCRIPT_URL){alert('חבר תחילה לGoogle Sheets');return;}const d=jLoad(),ok=await cloudSave(d);const ind=document.getElementById('sync-indicator');if(ind){ind.textContent=ok?'☁️ '+d.length+' רשומות נדחפו':'⚠️ שגיאה';setTimeout(()=>ind.textContent='',3000);}}
+async function cloudLoad(){
+  if(!APPS_SCRIPT_URL)return null;
+  try{
+    const ctrl=new AbortController();const tid=setTimeout(()=>ctrl.abort(),8000);
+    const res=await fetch(APPS_SCRIPT_URL+'?action=load&t='+Date.now(),{signal:ctrl.signal});
+    clearTimeout(tid);
+    const data=JSON.parse(await res.text());if(Array.isArray(data))return data;
+  }catch(e){}return null;
+}
+async function cloudSave(data){
+  if(!APPS_SCRIPT_URL)return false;
+  try{
+    const form=document.getElementById('gs-sync-form'),dataEl=document.getElementById('gs-sync-data');
+    if(form&&dataEl){
+      // וודא שהנתונים מלאים לפני שליחה
+      const json=JSON.stringify(data);
+      form.action=APPS_SCRIPT_URL;dataEl.value=json;form.submit();
+      return data.length;
+    }return false;
+  }catch(e){return false;}
+}
+async function jLoadCloud(){const cloud=await cloudLoad();if(cloud){localStorage.setItem(STORAGE_KEY,JSON.stringify(cloud));renderJournal();const ind=document.getElementById('sync-indicator');if(ind){ind.textContent='☁️ נטען מהענן ('+cloud.length+')';setTimeout(()=>ind.textContent='',2500);}}}
+async function jPushAll(){
+  if(!APPS_SCRIPT_URL){alert('חבר תחילה לGoogle Sheets');return;}
+  const d=jLoad();
+  if(!d.length){alert('אין נתונים לדחיפה');return;}
+  const cnt=await cloudSave(d);
+  const ind=document.getElementById('sync-indicator');
+  if(ind){ind.textContent=cnt?'☁️ נדחפו '+cnt+' רשומות':'⚠️ שגיאה';setTimeout(()=>ind.textContent='',3000);}
+}
 let liveRefreshTimer=null;
 async function fetchLivePrice(ticker,force=false){
   const key='QUOTE_'+ticker;
@@ -939,12 +985,48 @@ function jCalcPL(r){
 }
 function daysSince(dateStr){if(!dateStr)return'—';const diff=Math.floor((new Date()-new Date(dateStr))/(1000*60*60*24));return diff>=0?diff:'—';}
 function jFmtD(n){return'$'+Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function jCardHtml(r,c){
+  if(!c)c=jCalcPL(r);
+  const stMap={open:{t:'פתוחה',cls:'tag-blue'},be:{t:'BE 🛡',cls:'tag-teal'},win:{t:'זכייה ✓',cls:'tag-green'},loss:{t:'הפסד ✗',cls:'tag-amber'}};
+  const st=stMap[r.status]||stMap.open;
+  const plVal=c.net!=null?c.net:null,plCls=plVal!=null?(plVal>=0?'j-card-pos':'j-card-neg'):'j-card-mut';
+  const plTxt=plVal!=null?(plVal>=0?'+':'')+jFmtD(plVal):'—';
+  const pctTxt=c.pct!=null?' ('+((c.pct>=0?'+':'')+c.pct.toFixed(1))+'%)':'';
+  const days=daysSince(r.date),curP=r.curP?'$'+parseFloat(r.curP).toFixed(2):'—';
+  const avg=c.avg?'$'+c.avg.toFixed(2):'—';
+  const e1=r.e1p&&r.e1s?'$'+parseFloat(r.e1p).toFixed(2)+' × '+r.e1s:'—';
+  const dchg=r.dailyChg!=null&&r.dailyChg!==''?(parseFloat(r.dailyChg)>=0?'+':'')+parseFloat(r.dailyChg).toFixed(2):'';
+  const dclr=r.dailyChg!=null?(parseFloat(r.dailyChg)>=0?'var(--green)':'var(--red)'):'var(--muted)';
+  const canLoad=r.status==='open'||r.status==='be';
+  return '<div class="j-card" id="jcard-'+r.id+'" onclick="selectJRow('+r.id+')">'+
+    '<div class="j-card-top">'+
+      '<span class="j-card-ticker">'+(r.ticker||'—')+'</span>'+
+      '<span class="tag '+st.cls+'">'+st.t+'</span>'+
+      '<span class="j-card-days">'+(days!=='—'?days+' ימים':'')+'</span>'+
+      '<span style="font-size:11px;color:var(--muted)">'+(r.date||'')+'</span>'+
+    '</div>'+
+    '<div class="j-card-body">'+
+      '<div class="j-card-item"><div class="j-card-lbl">כניסה #1</div><div class="j-card-val">'+e1+'</div></div>'+
+      '<div class="j-card-item"><div class="j-card-lbl">ממוצע כניסה</div><div class="j-card-val">'+avg+'</div></div>'+
+      '<div class="j-card-item"><div class="j-card-lbl">מחיר נוכחי</div><div class="j-card-val">'+curP+'<span style="font-size:10px;color:'+dclr+';margin-right:4px"> '+dchg+'</span></div></div>'+
+      '<div class="j-card-item"><div class="j-card-lbl">P&L נטו</div><div class="j-card-val '+plCls+'">'+plTxt+pctTxt+'</div></div>'+
+    '</div>'+
+    (r.notes?'<div class="j-card-notes">'+r.notes+'</div>':'')+
+    '<div class="j-card-actions">'+
+      '<button class="jlive" onclick="event.stopPropagation();jFetchLive('+r.id+',\''+r.ticker+'\',this)">📡 עדכן</button>'+
+      (canLoad?'<button class="jtool" style="padding:4px 10px;font-size:11px" onclick="event.stopPropagation();loadRowToCalc('+r.id+')">🧮 טען</button>':'')+
+      '<button class="jdel" onclick="event.stopPropagation();jDelete('+r.id+')">✕</button>'+
+    '</div></div>';
+}
 function renderJournal(){
   const data=jLoad();
-  // חישוב P&L אחת לכל השורות — לא פעמיים
   const plMap={};data.forEach(r=>{plMap[r.id]=jCalcPL(r);});
   renderJStats(data,plMap);
   const list=jFilter==='all'?data:data.filter(r=>r.status===jFilter);
+  // כרטיסיות מובייל
+  const cardsEl=document.getElementById('j-cards');
+  if(cardsEl){cardsEl.innerHTML=list.length?list.map(r=>jCardHtml(r,plMap[r.id])).join(''):'<div style="text-align:center;padding:40px 20px;color:var(--muted);font-size:13px"><div style="font-size:32px;opacity:.2;margin-bottom:10px">📊</div>אין עסקאות ביומן</div>';}
+  // טבלה דסקטופ
   const tbody=document.getElementById('j-tbody'),empty=document.getElementById('j-empty');
   if(!list.length){tbody.innerHTML='';empty.style.display='block';return;}
   empty.style.display='none';tbody.innerHTML=list.map(r=>jRowHtml(r,plMap[r.id])).join('');
@@ -1006,21 +1088,21 @@ function jRowHtml(r,c){
     '<td><input class="jc jc-text" style="width:110px" value="'+(r.notes||'').replace(/"/g,'&quot;')+'" onblur="jSet('+r.id+',\'notes\',this.value)"></td>'+
     '<td style="text-align:center;white-space:nowrap"><button class="jlive" onclick="jFetchLive('+r.id+',\''+r.ticker+'\',this)">&#x1F4E1;</button> <button class="jdel" onclick="jDelete('+r.id+')">&#x2715;</button></td></tr>';
 }
-function selectJRow(id){jSelectedId=id;document.querySelectorAll('.j-table tbody tr').forEach(tr=>tr.classList.remove('row-selected'));const row=document.getElementById('jr-'+id);if(row)row.classList.add('row-selected');}
+function selectJRow(id){jSelectedId=id;document.querySelectorAll('.j-table tbody tr,.j-card').forEach(el=>el.classList.remove('row-selected'));const row=document.getElementById('jr-'+id);if(row)row.classList.add('row-selected');const card=document.getElementById('jcard-'+id);if(card)card.classList.add('row-selected');}
 function jSet(id,field,val){const d=jLoad();const r=d.find(x=>x.id===id);if(!r)return;r[field]=val;jSave(d);}
 function jNum(id,field,val){const d=jLoad();const r=d.find(x=>x.id===id);if(!r)return;const n=parseFloat(val);r[field]=n>0?n:'';jSave(d);}
 function jRefreshRow(id){
-  // רענון שורה בודדת — לא כל הטבלה
   const d=jLoad();const r=d.find(x=>x.id===id);
   if(!r){renderJournal();return;}
-  const tr=document.getElementById('jr-'+id);
-  if(!tr){renderJournal();return;}
   const c=jCalcPL(r);
-  const newHtml=jRowHtml(r,c);
-  const tmp=document.createElement('tbody');tmp.innerHTML=newHtml;
-  const newTr=tmp.firstElementChild;if(newTr)tr.replaceWith(newTr);
-  // עדכון שורת הסטטיסטיקות בלבד
   const plMap={};d.forEach(x=>{plMap[x.id]=x.id===id?c:jCalcPL(x);});
+  // רענון כרטיסייה במובייל
+  const card=document.getElementById('jcard-'+id);
+  if(card){const tmp=document.createElement('div');tmp.innerHTML=jCardHtml(r,c);const nc=tmp.firstElementChild;if(nc)card.replaceWith(nc);}
+  // רענון שורה בטבלת דסקטופ
+  const tr=document.getElementById('jr-'+id);
+  if(tr){const newHtml=jRowHtml(r,c);const tmp=document.createElement('tbody');tmp.innerHTML=newHtml;const newTr=tmp.firstElementChild;if(newTr)tr.replaceWith(newTr);}
+  if(!card&&!tr){renderJournal();return;}
   renderJStats(d,plMap);
 }
 function jDelete(id){if(!confirm('למחוק שורה זו?'))return;atrDelete(id);jSave(jLoad().filter(r=>r.id!==id));renderJournal();}
